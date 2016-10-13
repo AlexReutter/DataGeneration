@@ -1,15 +1,25 @@
+* Each underlying factor has a normal distribution with variance 1, and a randomly
+  generated mean.  This macro creates those factor means.  Since the factor means won't
+  be used in the final dataset, they are temporary variables
+.
 DEFINE createFactorMeans(nFactors = !TOKENS(1)).
    DO REPEAT #factorMean=#factorMean_1 TO !CONCAT('#factorMean_',!nFactors).
       COMPUTE #factorMean = rv.normal( 0, 4 ).
    END REPEAT.
 !ENDDEFINE.
 
+* This macro defines the value of each underlying factor for each record, using the factor
+  means defined in the createFactorMeans macro.
+.
 DEFINE createFactors(nFactors = !TOKENS(1)).
    !DO !iFactors = 1 !TO !nFactors.
       COMPUTE !CONCAT('#factor_',!iFactors) = rv.normal( !CONCAT('#factorMean_',!iFactors), 1 ).
    !DOEND.
 !ENDDEFINE.
 
+* Each continuous predictor is linearly related to the underlying factors.  This
+  macro defines the coefficients that relate the underlying factors to each predictor
+  .
 DEFINE createContinuousPredictorCoefficients(nFactors = !TOKENS(1) 
                                              /nContinuousPredictors = !TOKENS(1)).
    !DO !iFactors = 1 !TO !nFactors.
@@ -19,6 +29,9 @@ DEFINE createContinuousPredictorCoefficients(nFactors = !TOKENS(1)
    !DOEND
 !ENDDEFINE.
 
+* This macro creates the continuous predictors, using the underlying factors and the
+  coefficients defined in previous macros
+  .
 DEFINE createContinuousPredictors(nFactors = !TOKENS(1) 
                                   /nContinuousPredictors = !TOKENS(1)).
    !DO !iPredictors = 1 !TO !nContinuousPredictors.
@@ -31,6 +44,12 @@ DEFINE createContinuousPredictors(nFactors = !TOKENS(1)
    !DOEND
 !ENDDEFINE.
 
+* The value of each categorical predictor is determine by each record's
+  "propensity" toward a particular category.  This "propensity" is linearly
+  related to the underlying factors.  This macro defines the coefficients 
+  that relate the underlying factors to the propensity toward each category
+  of each predictor 
+  .
 DEFINE createCategoricalPredictorCoefficients(nFactors = !TOKENS(1) 
                                              /nCategoricalPredictors = !TOKENS(1)
                                              /nPredictorCategories = !TOKENS(1) ).
@@ -43,6 +62,9 @@ DEFINE createCategoricalPredictorCoefficients(nFactors = !TOKENS(1)
    !DOEND
 !ENDDEFINE.
 
+* This macro creates the categorical predictors, using the underlying factors
+  and coefficients defined in previous macros
+  .
 DEFINE createCategoricalPredictors(nFactors = !TOKENS(1) 
                                   /nCategoricalPredictors = !TOKENS(1)
                                   /nPredictorCategories = !TOKENS(1) ).
@@ -66,6 +88,11 @@ DEFINE createCategoricalPredictors(nFactors = !TOKENS(1)
    !DOEND.
 !ENDDEFINE.
 
+* The createCategoricalPredictors macro creates predictors that take numeric
+  categorical values.  We can also create short- and long-string predictors 
+  following the same process, with the additional wrinkle of defining the
+  predictor categories with short or long strings
+  .
 DEFINE createShortStringPredictorCoefficients(nFactors = !TOKENS(1) 
                                              /nShortStringPredictors = !TOKENS(1)
                                              /nShortStringCategories = !TOKENS(1) ).
@@ -148,12 +175,18 @@ DEFINE createLongStringPredictors(nFactors = !TOKENS(1)
 !ENDDEFINE.
 
 
+* The continuous target is linearly related to the underlying factors.  This
+  macro defines the coefficients that relate the underlying factors to the target
+  .
 DEFINE createContinuousTargetCoefficients(nFactors = !TOKENS(1) ).
    !DO !iFactors = 1 !TO !nFactors.
       COMPUTE !CONCAT('#targetCoeff_',!iFactors) = rv.normal( 0, 1 ).
    !DOEND
 !ENDDEFINE.
 
+* This macro creates the continuous target, using the underlying factors and the
+  coefficients defined in previous macros
+  .
 DEFINE createContinuousTarget(nFactors = !TOKENS(1) ).
    COMPUTE continuousTarget = rv.normal(0,2).
    !DO !iFactors = 1 !TO !nFactors.
@@ -162,6 +195,12 @@ DEFINE createContinuousTarget(nFactors = !TOKENS(1) ).
     COMPUTE continuousTarget = 0.01*trunc(100*continuousTarget).
 !ENDDEFINE.
 
+* The value of the categorical target is determine by each record's
+  "propensity" toward a particular category.  This "propensity" is linearly
+  related to the underlying factors.  This macro defines the coefficients 
+  that relate the underlying factors to the propensity toward each category
+  of the target
+  .
 DEFINE createCategoricalTargetCoefficients(nFactors = !TOKENS(1) 
                                           /nTargetCategories = !TOKENS(1) ).
    !DO !iFactors = 1 !TO !nFactors.
@@ -171,6 +210,9 @@ DEFINE createCategoricalTargetCoefficients(nFactors = !TOKENS(1)
    !DOEND.
 !ENDDEFINE.
 
+* This macro creates the categorical target, using the underlying factors
+  and coefficients defined in previous macros
+  .
 DEFINE createCategoricalTarget(nFactors = !TOKENS(1) 
                               /nTargetCategories = !TOKENS(1) ).
    !DO !iCategories = 1 !TO !nTargetCategories.
@@ -218,11 +260,12 @@ DEFINE createData(nRecords = !TOKENS(1)
                  /nSplits = !TOKENS(1)
                  /nTargetCategories = !TOKENS(1) ).
 
-* This is one way to create "unique" IDs.  Add or remove sections of the ID as desired.
+* Create a working file
+.
 INPUT PROGRAM.
-   string customer_id (a10).
-   VARIABLE LABELS customer_id "Customer ID".
-   VARIABLE ROLE /NONE customer_id.
+   * Create temporary variables that will be used to build the permanent variables
+   This method of building a dataset posits a number of underlying, unobserved factors
+   that all of the observed variables are linearly related to.
    createFactorMeans nFactors=!nFactors.
    !IF ( !nContinuousPredictors > 0 ) !THEN.
      createContinuousPredictorCoefficients nFactors=!nFactors nContinuousPredictors=!nContinuousPredictors.
@@ -238,6 +281,12 @@ INPUT PROGRAM.
    !IFEND.
    createContinuousTargetCoefficients nFactors=!nFactors .
    createCategoricalTargetCoefficients nFactors=!nFactors nTargetCategories=!nTargetCategories.
+
+   * This is one way to create "unique" IDs for records
+   .
+   string customer_id (a10).
+   VARIABLE LABELS customer_id "Customer ID".
+   VARIABLE ROLE /NONE customer_id.
    LOOP #I = 1 TO !nRecords.
       LOOP #j = 1 to 4.
          COMPUTE substr(customer_id,#j,1) = substr('0123456789',trunc(uniform(10))+1,1).

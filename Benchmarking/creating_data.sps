@@ -1,6 +1,11 @@
-﻿
+﻿* Set file handle for the location of data_creation_macros.
+FILE HANDLE codeDirectory /NAME='C:\Github\DataGeneration\Benchmarking'.
+
+* Choose a random number generator seed in order to create a replicable dataset, or comment this out.
+SET RNG=MT MTINDEX=9141998.
+
 * Grab the macros that create random factors.
-INSERT FILE="./data_creation_macros.sps".
+INSERT FILE="codeDirectory/data_creation_macros.sps".
 
 * Run the macro that creates the data.  Change the parameter values as desired.
 * nRecords is the number of records 
